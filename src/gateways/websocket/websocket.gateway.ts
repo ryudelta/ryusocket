@@ -1,57 +1,58 @@
-import { ModuleRef } from '@nestjs/core';
 import {
-  SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { SocketPath } from '@utils/header';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { parse } from 'url';
+
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { PublicGatewayController } from './controller/public.gateway.controller';
+import { PrivateGatewayController } from './controller/private.gateway.controller';
+import { parse } from 'path';
+import { WebsocketService } from './services/websocket/websocket.service';
+import { extractClientId } from '@utils/header';
+import { QueryStream } from '@utils/index';
 
-@WebSocketGateway(13000, { cors: '*' })
-export class BaseWebsocketGateway {
+@WebSocketGateway(4000)
+export class BaseWebsocketGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
   private readonly logger = new Logger(BaseWebsocketGateway.name);
 
-  constructor(private readonly moduleRef: ModuleRef) {}
-
-  @SubscribeMessage('ping')
-  handleMessage(client: Socket, payload: string): void {
-    console.log(
-      `Received message from ${client.id} with protocol ${client.conn.protocol}: ${payload}`,
-    );
-    this.server.emit(
-      'message',
-      `Message from ${client.id} with protocol ${client.conn.protocol}: ${payload}`,
-    );
+  constructor(
+    private readonly publicGateway: PublicGatewayController,
+    private readonly privateGateway: PrivateGatewayController,
+    private readonly websocketService: WebsocketService,
+  ) {}
+  afterInit() {
+    this.logger.log('Initialized');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  handleConnection(client: any, ..._args: any[]) {
-    // this.server.emit('connected', `Client connected: ${client.id}`);
-    const parsedUrl = parse(client.handshake.url, true);
-    const path = parsedUrl.pathname;
+  handleConnection(client: Socket, data: any) {
+    const clientId = extractClientId(data);
+    const parsedUrl = parse(data.url);
 
-    const controllers = this.moduleRef.get<string[]>(SocketPath);
+    const queryStream = QueryStream(parsedUrl['base']);
 
-    this.logger.debug(controllers);
-    const controllerPath = controllers.find((controllerPath) =>
-      path.startsWith(controllerPath),
-    );
+    client['clientId'] = clientId;
 
-    if (controllerPath) {
-      const controllerInstance = this.moduleRef.get(controllerPath);
-      controllerInstance.handleConnection(client, parsedUrl.query, this.server);
-    } else {
-      client.disconnect();
-    }
+    const path = parsedUrl.name;
+
+    const controllerClass =
+      path == 'public' ? this.publicGateway : this.privateGateway;
+
+    controllerClass.handleConnection(client, queryStream, this.server);
   }
 
-  handleDisconnect(client: any) {
+  handleDisconnect(client: Socket) {
+    this.logger.log(`client disconnect : ${client['clientId']}`);
+    this.websocketService.unsubscribeFromStream(client);
+
     this.server.emit('disconnected', `Client disconnected: ${client.id}`);
   }
 }
