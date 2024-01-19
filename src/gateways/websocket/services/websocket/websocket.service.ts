@@ -1,41 +1,55 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { messageToStream } from '@utils/index';
 import { WebSocket } from 'ws';
 
 @Injectable()
 export class WebsocketService {
   private logger = new Logger(WebsocketService.name);
-  private subscriptions: Map<string, Set<WebSocket>> = new Map();
+  private subscriptions: Map<
+    string,
+    Set<{ clientId: string; client: WebSocket }>
+  > = new Map();
 
-  subscribeToStream(client: WebSocket, stream: string) {
-    if (!this.subscriptions.has(stream)) {
-      this.subscriptions.set(stream, new Set());
-    }
+  subscribeToStream(client: WebSocket, clientId: string, streams: string[]) {
+    streams.forEach((stream) => {
+      if (!this.subscriptions.has(stream)) {
+        this.subscriptions.set(stream, new Set());
+      }
 
-    this.subscriptions.get(stream).add(client);
-    // console.log(this.subscriptions);
-    console.log('===================');
+      this.subscriptions.get(stream).add({ clientId, client: client });
+    });
   }
 
   unsubscribeFromStream(client: WebSocket) {
-    this.logger.log(client['clientId']);
-    const subscriptions = this.subscriptions.get(client['clientId']);
+    this.subscriptions.forEach((clients) => {
+      clients.forEach((clientData) => {
+        if (clientData.clientId === client['clientId']) {
+          this.logger.debug(`client ${client['clientId']} deleted`);
+          const deletedClient = clients.delete(clientData);
+          this.logger.debug(deletedClient);
+        }
+      });
+    });
+  }
 
-    console.log(this.subscriptions);
-
-    this.logger.log(this.subscriptions);
-    if (subscriptions) {
-      subscriptions.delete(client);
-    }
+  closeConnection(client: WebSocket) {
+    this.subscriptions.forEach((clients) => {
+      clients.forEach((clientData) => {
+        if (client.clientId === client['clientId']) {
+          clientData.client.close();
+          clients.delete(clientData);
+        }
+      });
+    });
   }
 
   broadcastToStream(stream: string, message: any) {
     const clients = this.subscriptions.get(stream);
-
+    const buildMessage = messageToStream(stream, message);
     if (clients) {
-      clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(message));
-        }
+      clients.forEach((clientData) => {
+        const { client } = clientData;
+        client.send(JSON.stringify(buildMessage));
       });
     }
   }

@@ -15,38 +15,51 @@ import { WebsocketService } from './services/websocket/websocket.service';
 import { extractClientId } from '@utils/header';
 import { QueryStream } from '@utils/index';
 
-@WebSocketGateway(4000)
+@WebSocketGateway(4000, { serveClient: true })
 export class BaseWebsocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
   server: Server;
   private readonly logger = new Logger(BaseWebsocketGateway.name);
+  private queryStream: string[] = [''];
 
   constructor(
     private readonly publicGateway: PublicGatewayController,
     private readonly privateGateway: PrivateGatewayController,
     private readonly websocketService: WebsocketService,
   ) {}
+
   afterInit() {
-    this.logger.log('Initialized');
+    this.logger.log('Web socket started');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleConnection(client: Socket, data: any) {
+    console.log(data.headers.authorization);
+
     const clientId = extractClientId(data);
     const parsedUrl = parse(data.url);
 
-    const queryStream = QueryStream(parsedUrl['base']);
+    if (client['clientId']) {
+      this.websocketService.closeConnection(client);
+    }
 
     client['clientId'] = clientId;
+    client['authorization'] = data.headers.authorization;
 
     const path = parsedUrl.name;
 
     const controllerClass =
       path == 'public' ? this.publicGateway : this.privateGateway;
 
-    controllerClass.handleConnection(client, queryStream, this.server);
+    if (parsedUrl['base'] != null) {
+      this.queryStream = QueryStream(parsedUrl['base']);
+    } else {
+      this.queryStream = [''];
+    }
+
+    controllerClass.handleConnection(client, this.queryStream, this.server);
   }
 
   handleDisconnect(client: Socket) {

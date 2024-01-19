@@ -10,7 +10,11 @@ export class PublicGatewayController {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleConnection(client: Socket, queryParams: any, server: Server) {
-    this.websocketService.subscribeToStream(client, queryParams);
+    this.websocketService.subscribeToStream(
+      client,
+      client['clientId'],
+      queryParams,
+    );
     const success = {
       success: {
         message: 'subcribed',

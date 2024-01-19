@@ -1,7 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function QueryStream(data: string): string[] {
-  console.log(data);
-
+export function QueryStream(data: string): any {
   const regexp = /streams=([^&]+)/g;
 
   const dataWithRegex = data.match(regexp);
