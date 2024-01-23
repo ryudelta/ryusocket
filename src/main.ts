@@ -10,7 +10,9 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new WsAdapter(app));
   try {
-    await socketStart(app);
+    await Promise.all([
+      socketStart(app)
+    ]);
   } catch (error) {
     console.log(`wait for 3 second to start again`);
 

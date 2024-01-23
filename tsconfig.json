@@ -12,7 +12,6 @@
     "baseUrl": "./",
     "types": ["node", "socket.io"],
     "paths": {
-      "@gateways/*":["src/gateways/*"],
       "@controllers/*":["src/controllers/*"],
       "@types/*":["src/types/*"],
       "@services/*": ["src/services/*"],
