@@ -35,7 +35,7 @@ export class BaseWebsocketGateway
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  handleConnection(client: Socket, data: any) {
+  async handleConnection(client: Socket, data: any) {
     console.log(data.headers.authorization);
 
     const clientId = extractClientId(data);
@@ -51,10 +51,13 @@ export class BaseWebsocketGateway
     const path = parsedUrl.name;
 
     const controllerClass =
-      path == 'public' ? this.publicGateway : this.privateGateway;
+      path == 'public' ? this.publicGateway : await this.privateGateway;
 
-    if (parsedUrl['base'] != null) {
+    if (parsedUrl['base'] != null || parsedUrl['base'] != '') {
       this.queryStream = QueryStream(parsedUrl['base']);
+      if (!this.queryStream){
+        this.queryStream = [''];
+      }
     } else {
       this.queryStream = [''];
     }

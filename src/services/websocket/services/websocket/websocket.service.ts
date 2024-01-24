@@ -18,6 +18,9 @@ export class WebsocketService {
 
       this.subscriptions.get(stream).add({ clientId, client: client });
     });
+
+    console.log(this.subscriptions);
+    
   }
 
   unsubscribeFromStream(client: WebSocket) {
