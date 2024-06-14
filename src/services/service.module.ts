@@ -7,13 +7,16 @@ import { RabbitmqService } from './rabbitmq/rabbitmq.service';
 import { ConfigModule } from '@nestjs/config';
 import rabbitmqConfig from './configs/rabbitmq.config';
 import { KeyUtils } from '@utils/key/key.jwt';
+import { RedisService } from './redis/redis.service';
 import jwtConfig from './configs/jwt.config';
+import redisConfig from './configs/redis.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       load: [
         rabbitmqConfig,
+        redisConfig,
         jwtConfig
       ],
     })
@@ -24,8 +27,9 @@ import jwtConfig from './configs/jwt.config';
     PrivateGatewayController,
     WebsocketService,
     RabbitmqService,
-    KeyUtils
+    KeyUtils,
+    RedisService
   ],
   exports: [],
 })
-export class WebsocketModule {}
+export class ServiceModule {}
